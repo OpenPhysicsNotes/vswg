@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use std::ops::Div;
 
+/// A sequence of path elements
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathVec {
     elements: Vec<PathElement>,
@@ -111,6 +112,9 @@ impl Div<String> for &PathVec {
     }
 }
 
+/// An element of a path
+///
+/// This is either a name, or a special element like `.` or `..`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PathElement {
     None,

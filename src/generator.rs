@@ -2,29 +2,61 @@ use std::path::PathBuf;
 
 use crate::path::PathVec;
 
+/// A rule for the generator
 pub trait Rule: 'static {
+    /// Run the rule on the given file
+    ///
+    /// # Arguments
+    /// * `root` - The root directory of the content
+    /// * `path` - The path to the file
+    /// * `rel` - The relative path to the file
+    /// * `out_root` - The root directory of the output
+    ///
+    /// # Returns
+    /// `true` if the rule was applied, `false` otherwise
     fn run(&self, root: &PathBuf, path: &PathBuf, rel: &PathVec, out_root: &PathBuf) -> bool;
 }
 
+/// A generator for static websites
+///
+/// # Example
+/// ```ignore
+/// # use vswg::Generator;
+/// Generator::new()
+///     .run("./examples/content", "./examples/out");
+/// ```
 pub struct Generator {
     rules: Vec<Box<dyn Rule>>,
 }
 
 impl Generator {
+    /// Create a new generator
     pub fn new() -> Self {
         Self {
             rules: Vec::new(),
         }
     }
 
+    /// Add a rule to the generator
     pub fn rule(self, rule: impl Rule) -> Self {
         let mut new = self;
         new.rules.push(Box::new(rule));
         new
     }
 
-    pub fn run(&self, dir: &PathBuf, out_dir: &PathBuf) {
-        self.handle_dir(dir, dir, &PathVec::new(), out_dir);
+    /// Run the generator on the given directory
+    pub fn run(&self, dir: &str, out_dir: &str) {
+        // TODO a better check
+        if out_dir.starts_with(dir) || dir.starts_with(out_dir) {
+            panic!("Output directory cannot be a subdirectory of the input directory or vice versa");
+        }
+
+        self.handle_dir(
+            &PathBuf::from(dir),
+            &PathBuf::from(dir),
+            &PathVec::new(),
+            &PathBuf::from(out_dir)
+        );
     }
 
     fn handle_dir(&self, root: &PathBuf, dir: &PathBuf, rel: &PathVec, out_root: &PathBuf) {
@@ -50,9 +82,7 @@ impl Generator {
 
     fn handle_file(&self, root: &PathBuf, path: &PathBuf, rel: &PathVec, out_root: &PathBuf) {
         assert_eq!(path.is_file(), true);
-        //println!("File: {}", path.display());
         let relative = path.strip_prefix(root).expect("Error stripping prefix");
-        //println!("Relative: {}", relative.display());
 
         for rule in self.rules.iter() {
             if rule.run(root, path, rel, out_root) {
@@ -62,8 +92,6 @@ impl Generator {
 
         let out_path = out_root.join(relative);
 
-        // copy file form path to out_path:
-        //println!("Copying file from {} to {}", path.display(), out_path.display());
         std::fs::copy(path, out_path).expect("Error copying file");
     }
 }
